@@ -1,0 +1,71 @@
+Import('env')
+
+env = env.Clone(
+    tools=[
+        'bitcode',
+	'bitcode2text',
+	'compare',
+        'tests',
+        'pass',
+	'pass-builder',
+	'run',
+        ],
+    toolpath=[
+        '#src/tests',
+        ])
+
+#Alias('test-llvm', '.')
+
+
+
+########################################################################
+#
+#  full test suite starting from C source code
+#
+
+for testdir in env.Tests():
+    tenv = env.Clone()
+
+    # find source file
+    source = testdir.File('source.c')
+
+    # translate source to bitcode	
+    suffix = tenv.Bitcode.builder.suffix
+    bitcode = testdir.File('source' + suffix)
+    tenv.Bitcode(bitcode, source)
+    Alias('test-bitcode', bitcode)   
+
+    # find config file
+    tenv['CONFIG_FILE'] = testdir.File('source.json')
+    tenv['EXCLUDE_FILE'] = testdir.File('exclude.txt')
+    tenv['INCLUDE_FILE'] = testdir.File('include.txt')
+
+    # run pass on bitcode file
+    tbitcode = testdir.File('transformed.bc')
+    tenv.LlvmPass(tbitcode, bitcode)
+    Alias('test-pass', tbitcode)
+    Alias('test', tbitcode)
+
+    # translate modified program to bitcode
+    expected = testdir.File('expected.c')
+    suffix = tenv.Bitcode.builder.suffix
+    ebitcode = testdir.File('expected' + suffix)
+    tenv.Bitcode(ebitcode, expected)
+    Alias('test-ebitcode', ebitcode)
+
+    # run expected program to create spec.cov
+    spec = testdir.File('spec.cov')
+    tenv.Run(spec, ebitcode)
+    Alias('test', spec)
+
+    # run transformed program to create log.cov
+    log = testdir.File('log.cov')
+    result = testdir.File('result.out')
+    tenv.Run([log, result], [tbitcode, spec])
+    Alias('test', result)
+
+    # did test pass?
+    final_result = testdir.File('transformed.passed')
+    tenv.Compare(final_result, result)
+    Alias('test', final_result)
+

@@ -1,0 +1,100 @@
+import SCons.Warnings
+from distutils.version import StrictVersion
+
+Import('env')
+
+env = env.Clone()
+
+def llvm_version(context):
+    context.Message('Checking LLVM version ... ')
+    succeeded, output = context.TryAction('$LLVM_CONFIG --version >$TARGET')
+    if succeeded:
+        result = output.rstrip('\n')
+        context.env['llvm_version'] = result
+        context.Result(result)
+        return result
+    else:
+        context.Result('failed')
+        context.env.Exit(1)
+
+def llvm_bindir(context):
+    context.Message('Checking LLVM executables ... ')
+    succeeded, output = context.TryAction('$LLVM_CONFIG --bindir >$TARGET')
+    if succeeded:
+        output = output.rstrip()
+        context.env.PrependENVPath('PATH', output)
+        context.Result(output)
+        return output
+    else:
+        context.Result('failed')
+        context.env.Exit(1)
+
+conf = Configure(env, custom_tests={
+        'LLVMVersion': llvm_version,
+        'LLVMBinDir': llvm_bindir,
+        })
+
+conf.LLVMVersion()
+conf.LLVMBinDir()
+env = conf.Finish()
+
+#llvm_version = StrictVersion(env['llvm_version'])
+#llvm_require = '3.0'
+#if llvm_version < llvm_require:
+#    SCons.Warnings.warn(SCons.Warnings.MissingSConscriptWarning, 'LLVM %s too old; need at least version %s' % (llvm_version, llvm_require))
+#    Return()
+
+
+########################################################################
+#
+#  LLVM plugin building
+#
+
+env.AppendUnique(
+    #SHLINKFLAGS='-Wl,--no-undefined',
+    SHLINKFLAGS='-Wl',
+    LIBS='LLVM-$llvm_version',
+    )
+env.MergeFlags('!llvm-config --cxxflags --ldflags')
+
+plugin = env.SharedLibrary(
+    'Passes',
+    [
+	'AdjustOperators.cpp',
+	'Change.cpp',
+	'CreateCallDependency.cpp',
+	'CreateConfigFile.cpp',
+	'CreateIDBitcode.cpp',
+	'CreateSearchFile.cpp',
+	'Instrument.cpp',
+	'Coverage.cpp',
+	'MeasureMetric.cpp',
+	'ParseConfig.cpp',
+        'PrintFunctionNames.cpp',
+	'PrintVariableNames.cpp',
+	'Transformer.cpp',
+	'Variables.cpp',
+	'Operators.cpp',
+	'RemoveDeadCasting.cpp',
+	'config_parser.cpp',
+	'lib/vjson/json.cpp',
+	'lib/vjson/block_allocator.cpp'
+        ],
+    INCPREFIX='-isystem ',
+    SHLIBPREFIX=None,
+    )
+
+Default(plugin)
+
+
+########################################################################
+#
+#  full test suite starting from C source code
+#
+
+SConscript(
+    dirs=[
+        'tests',
+        ],
+    exports='env',
+    )

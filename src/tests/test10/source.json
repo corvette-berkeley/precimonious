@@ -1,0 +1,22 @@
+{
+	"localVar": {
+		"function": "main",
+		"name": "c",
+		"type": "double[4]"
+	},
+	"localVar": {
+		"function": "main",
+		"name": "result",
+		"type": "longdouble"
+	},
+	"localVar": {
+		"function": "calculate",
+		"name": "x",
+		"type": "double*"
+	},
+	"localVar": {
+		"function": "calculate",
+		"name": "count",
+		"type": "longdouble"
+	}
+}

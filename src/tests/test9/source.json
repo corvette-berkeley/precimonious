@@ -1,0 +1,67 @@
+{
+	"localVar": {
+		"function": "main",
+		"name": "argv",
+		"type": "int**"
+	},
+	"localVar": {
+		"function": "main",
+		"name": "c",
+		"type": "longdouble[4][2]"
+	},
+	"localVar": {
+		"function": "main",
+		"name": "argc",
+		"type": "int"
+	},
+	"localVar": {
+		"function": "main",
+		"name": "n",
+		"type": "int"
+	},
+	"localVar": {
+		"function": "main",
+		"name": "result",
+		"type": "longdouble"
+	},
+	"localVar": {
+		"function": "calculate",
+		"name": "x",
+		"type": "longdouble*"
+	},
+	"localVar": {
+		"function": "calculate",
+		"name": "count",
+		"type": "longdouble"
+	},
+	"localVar": {
+		"function": "calculate",
+		"name": "i",
+		"type": "int"
+	},
+	"localVar": {
+		"function": "calculate",
+		"name": "n",
+		"type": "int"
+	},
+	"localVar": {
+		"function": "aprintf",
+		"name": "a",
+		"type": "longdouble*"
+	},
+	"localVar": {
+		"function": "aprintf",
+		"name": "str",
+		"type": "int*"
+	},
+	"localVar": {
+		"function": "aprintf",
+		"name": "i",
+		"type": "int"
+	},
+	"localVar": {
+		"function": "aprintf",
+		"name": "n",
+		"type": "int"
+	}
+}

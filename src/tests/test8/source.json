@@ -1,0 +1,47 @@
+{
+	"localVar": {
+		"function": "main",
+		"name": "argv",
+		"type": "pointer"
+	},
+	"localVar": {
+		"function": "main",
+		"name": "c",
+		"type": "double[4]"
+	},
+	"localVar": {
+		"function": "main",
+		"name": "argc",
+		"type": "int"
+	},
+	"localVar": {
+		"function": "main",
+		"name": "n",
+		"type": "int"
+	},
+	"localVar": {
+		"function": "main",
+		"name": "result",
+		"type": "longdouble"
+	},
+	"localVar": {
+		"function": "aprintf",
+		"name": "a",
+		"type": "pointer"
+	},
+	"localVar": {
+		"function": "aprintf",
+		"name": "str",
+		"type": "pointer"
+	},
+	"localVar": {
+		"function": "aprintf",
+		"name": "i",
+		"type": "int"
+	},
+	"localVar": {
+		"function": "aprintf",
+		"name": "n",
+		"type": "int"
+	}
+}

@@ -1,0 +1,67 @@
+{"config": [
+	{"localVar": {
+		"function": "main",
+		"name": "argv",
+		"type": "pointer"
+	}},
+	{"localVar": {
+		"function": "main",
+		"name": "c",
+		"type": ["float[4][2]", "double[4][2]", "longdouble[4][2]"]
+	}},
+	{"localVar": {
+		"function": "main",
+		"name": "argc",
+		"type": "int"
+	}},
+	{"localVar": {
+		"function": "main",
+		"name": "n",
+		"type": "int"
+	}},
+	{"localVar": {
+		"function": "main",
+		"name": "result",
+		"type": ["float", "double", "longdouble"]
+	}},
+	{"localVar": {
+		"function": "calculate",
+		"name": "x",
+		"type": ["float*", "double*", "longdouble*"]
+	}},
+	{"localVar": {
+		"function": "calculate",
+		"name": "count",
+		"type": ["float", "double", "longdouble"]
+	}},
+	{"localVar": {
+		"function": "calculate",
+		"name": "i",
+		"type": "int"
+	}},
+	{"localVar": {
+		"function": "calculate",
+		"name": "n",
+		"type": "int"
+	}},
+	{"localVar": {
+		"function": "aprintf",
+		"name": "a",
+		"type": ["float*", "double*", "longdouble*"]
+	}},
+	{"localVar": {
+		"function": "aprintf",
+		"name": "str",
+		"type": "pointer"
+	}},
+	{"localVar": {
+		"function": "aprintf",
+		"name": "i",
+		"type": "int"
+	}},
+	{"localVar": {
+		"function": "aprintf",
+		"name": "n",
+		"type": "int"
+	}}
+]}

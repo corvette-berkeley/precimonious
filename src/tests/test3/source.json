@@ -1,0 +1,38 @@
+{
+	"localVar": {
+		"function": "main",
+		"name": "a",
+		"type": "float[3]"
+	},
+	"localVar": {
+		"function": "main",
+		"name": "b",
+		"type": "double"
+	},
+	"localVar": {
+		"function": "main",
+		"name": "c",
+		"type": "double"
+	},
+	"localVar": {
+		"function": "main",
+		"name": "retval",
+		"type": "int"
+	},
+	"localVar": {
+		"function": "main",
+		"name": "argv",
+		"type": "pointer"
+	},
+	"localVar": {
+		"function": "main",
+		"name": "argc",
+		"type": "int"
+	},
+	"op": {
+		"id": "20",
+		"function": "main",
+		"name": "fadd",
+		"type": "double"
+	}
+}

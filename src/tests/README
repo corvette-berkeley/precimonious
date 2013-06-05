@@ -1,0 +1,9 @@
+
+To add a new test:
+
+1) Create a new directory test#.
+2) Add source.c: the file to transform.
+3) Add source.json: the configuration reflecting the changes to be made.
+4) Add expected.c: the hand-written source.c reflecting the changes.
+   Make sure expected.c calls cov_spec_log instead of cov_log and cov_check.
+5) Set the propedit svn:ignore property for the new directory.

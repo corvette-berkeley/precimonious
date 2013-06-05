@@ -1,0 +1,29 @@
+
+Sample main.py
+==============
+Transforms a program given a configuration file and checks the result.
+
+Required files: file.bc, file.json, spec.cov
+Command: ./main file.bc file.json
+
+brute_force.py
+===============
+Runs the brute force algorithm.
+
+Required files: file.bc searchFile.json file.json
+Command: ./brute_force.py file.bc searchFile.json file.json [limit]
+
+dd.py
+===============
+Run the dd algorithm.
+
+Required files: file.bc searchFile.json file.json
+Command: ./dd.py file.bc searchFile.json file.json
+
+run.py
+===============
+Cleans, compiles, creates search and original config file, and runs the dd algorithm.
+
+Required files: source files
+Command: ./run.sh filename .
+

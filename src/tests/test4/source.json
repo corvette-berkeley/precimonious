@@ -1,0 +1,27 @@
+{
+	"localVar": {
+		"function": "main",
+		"name": "argv",
+		"type": "pointer"
+	},
+	"localVar": {
+		"function": "main",
+		"name": "a",
+		"type": "float"
+	},
+	"localVar": {
+		"function": "main",
+		"name": "b",
+		"type": "float"
+	},
+	"localVar": {
+		"function": "main",
+		"name": "c",
+		"type": "longdouble"
+	},
+	"localVar": {
+		"function": "main",
+		"name": "argc",
+		"type": "int"
+	}
+}

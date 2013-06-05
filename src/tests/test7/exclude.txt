@@ -1,0 +1,8 @@
+cov_log
+cov_check
+cov_arr_check
+cov_serialize
+cov_deserialize
+cov_spec_log
+cov_arr_log
+cov_spec_arr_log

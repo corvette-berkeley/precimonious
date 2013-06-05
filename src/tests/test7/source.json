@@ -1,0 +1,32 @@
+{
+	"localVar": {
+		"function": "main",
+		"name": "argv",
+		"type": "pointer"
+	},
+	"localVar": {
+		"function": "main",
+		"name": "x",
+		"type": "longdouble[4]"
+	},
+	"localVar": {
+		"function": "main",
+		"name": "y",
+		"type": "float[2]"
+	},
+	"localVar": {
+		"function": "main",
+		"name": "i",
+		"type": "int"
+	},
+	"localVar": {
+		"function": "main",
+		"name": "argc",
+		"type": "int"
+	},
+	"localVar": {
+		"function": "main",
+		"name": "result",
+		"type": "longdouble"
+	}
+}
