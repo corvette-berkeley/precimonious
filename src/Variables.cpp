@@ -5,6 +5,7 @@
 
 #include <llvm/Analysis/DebugInfo.h>
 #include <llvm/Analysis/DIBuilder.h>
+#include <llvm/Support/CommandLine.h>
 #include <llvm/Constants.h>
 #include <llvm/IntrinsicInst.h>
 #include <llvm/DerivedTypes.h>
@@ -19,6 +20,9 @@
 #include <fstream>
 
 
+cl::opt<string> OutputFileName("output", cl::value_desc("filename"), cl::desc("File name for transformed bitcode (used in regression tests)"));
+
+
 ConstantInt* Variables::getInt32(int n) {
   static llvm::LLVMContext& global = llvm::getGlobalContext();
   return llvm::ConstantInt::get(llvm::Type::getInt32Ty(global), n);
@@ -30,6 +34,37 @@ ConstantInt* Variables::getInt64(int n) {
   return llvm::ConstantInt::get(llvm::Type::getInt64Ty(global), n);
 }
 
+static bool diffTypes(Type *type1, Type *type2) {
+
+#ifdef DEBUG
+  errs() << "COMPARING " << type1 << " AND " << type2;
+#endif
+  
+   unsigned int typeID1 = type1->getTypeID();
+   unsigned int typeID2 = type2->getTypeID();
+
+   if (typeID1 != typeID2) {
+     return true;
+   }
+   else {
+
+     // Case: pointer to FP (arrays passed as parameter)
+     if (PointerType *ptype1 = dyn_cast<PointerType>(type1)) {
+       if (PointerType *ptype2 = dyn_cast<PointerType>(type2)) {
+
+         Type *elementType1 = ptype1->getElementType();
+         Type *elementType2 = ptype2->getElementType();
+
+         if (elementType1->isFloatingPointTy() && elementType2->isFloatingPointTy()) {
+           if (elementType1->getTypeID() != elementType2->getTypeID()) {
+             return true;
+           }
+         }
+       }
+     }
+   }
+   return false;
+}
 
 void Variables::doInitialization(Module &module) {
   
@@ -67,10 +102,18 @@ void Variables::changeGlobal(Change* change, Module &module) {
   Type* newType = change->getType()[0];
   errs() << "Changing the precision of variable \"" << oldTarget->getName() << "\" from " << *oldType << " to " << *newType << ".\n";
 
-  if (oldType->getTypeID() != newType->getTypeID()) {      
+  if (diffTypes(oldType, newType)) {      
+    Constant *initializer;
+    if (PointerType *newPointerType = dyn_cast<PointerType>(newType))
+    {
+      initializer = ConstantPointerNull::get(newPointerType);
+    }
+    else
+    {
+      initializer = ConstantFP::get(newType, 0);
+    }
 
-    Constant *zero = ConstantFP::get(newType, 0);
-    GlobalVariable* newTarget = new GlobalVariable(module, newType, false, GlobalValue::CommonLinkage, zero, "");
+    GlobalVariable* newTarget = new GlobalVariable(module, newType, false, GlobalValue::CommonLinkage, initializer, "");
 
     unsigned alignment = getAlignment(newType);
     newTarget->setAlignment(alignment);
@@ -90,41 +133,19 @@ void Variables::changeGlobal(Change* change, Module &module) {
   return;
 }
 
-static bool diffTypes(Type *type1, Type *type2) {
 
-#ifdef DEBUG
-  errs() << "COMPARING " << type1 << " AND " << type2;
-#endif
-  
-   unsigned int typeID1 = type1->getTypeID();
-   unsigned int typeID2 = type2->getTypeID();
+static bool diffStructTypes(StructType *type1, StructType *type2) {
+  int num = type1->getNumElements();
 
-   if (typeID1 != typeID2) {
-     return true;
-   }
-   else {
-
-     // Case: pointer to FP (arrays passed as parameter)
-     if (PointerType *ptype1 = dyn_cast<PointerType>(type1)) {
-
-       if (PointerType *ptype2 = dyn_cast<PointerType>(type2)) {
-
-
-         Type *elementType1 = ptype1->getElementType();
-         Type *elementType2 = ptype2->getElementType();
-
-         if (elementType1->isFloatingPointTy() && elementType2->isFloatingPointTy()) {
-
-           if (elementType1->getTypeID() != elementType2->getTypeID()) {
-
-             return true;
-           }
-         }
-       }
-     }
-   }
-   return false;
+  // assum same number of elements
+  for(int i = 0; i < num; i++) {
+    if (diffTypes(type1->getElementType(i), type2->getElementType(i))) {
+      return true;
+    }
+  }
+  return false;
 }
+
 
 AllocaInst* Variables::changeLocal(Value* value, Type* newType) {
 
@@ -178,6 +199,8 @@ AllocaInst* Variables::changeLocal(Change* change) {
     return changeLocal(change->getValue(), arrayType);
   } else if (PointerType* pointerType = dyn_cast<PointerType>(newType)) {
     return changeLocal(change->getValue(), pointerType);
+  } else if (StructType* structType = dyn_cast<StructType>(newType)) {
+    return changeLocal(change->getValue(), structType/*, change->getField()*/);
   } else {
     return changeLocal(change->getValue(), newType);
   }
@@ -317,6 +340,64 @@ AllocaInst* Variables::changeLocal(Value* value, ArrayType* newType) {
     errs() << "\tNo changes required.\n";    
   }
 
+  return newTarget;
+}
+
+
+AllocaInst* Variables::changeLocal(Value* value, StructType* newType/*, int field*/) {
+
+  errs() << "At changeLocalStruct\n";
+  AllocaInst* newTarget = NULL;
+  vector<Instruction*> erase;
+
+  if (AllocaInst *oldTarget = dyn_cast<AllocaInst>(value)) {
+    if (PointerType *oldPointer = dyn_cast<PointerType>(oldTarget->getType())) {
+      if (StructType *oldType = dyn_cast<StructType>(oldPointer->getElementType())) {
+	
+	errs() << "Changing the precision of variable \"" << oldTarget->getName() << "\" from " << *oldType 
+	       << " to " << *newType << ".\n";
+      
+	if (diffStructTypes(oldType, newType)) {
+	  unsigned alignment = oldTarget->getAlignment();
+	  
+	  newTarget = new AllocaInst(newType, 0, alignment, "new", oldTarget);
+	  newTarget->takeName(oldTarget);
+	
+	  // iterating through instructions using old getelementptr instructions
+	  Value::use_iterator it = oldTarget->use_begin();
+	  for(; it != oldTarget->use_end(); it++) {
+	    
+	    if (GetElementPtrInst *getElementPtrInst = dyn_cast<GetElementPtrInst>(*it)) {
+	      if (ConstantInt *constantIntIndex = dyn_cast<ConstantInt>(getElementPtrInst->getOperand(2))) {
+		unsigned int index = constantIntIndex->getLimitedValue(); // the index of the field accessed by this use
+		
+		Type *newFieldType = newType->getElementType(index);
+		Type *oldFieldType = oldType->getElementType(index);
+		unsigned alignment = getAlignment(newFieldType); // 4 hard coded for now
+		bool is_erased = Transformer::transform(it, newTarget, oldTarget, newFieldType, oldFieldType, alignment);
+		
+		if (!is_erased) {
+		  erase.push_back(dyn_cast<Instruction>(*it));
+		}  
+	      }
+	    }
+	    else {
+	      errs() << "WARNING: unexpected use of struct\n";
+	    }
+	  }
+	  
+	  // erasing uses of old instructions
+	  for(unsigned int i = 0; i < erase.size(); i++) {
+	    erase[i]->eraseFromParent();
+	  }
+	  
+	}
+	else {
+	  errs() << "\tNo changes required.\n";
+	}
+      } 
+    }
+  }
   return newTarget;
 }
 
@@ -493,7 +574,7 @@ bool Variables::runOnModule(Module &module) {
     if (newTarget) {
       errs() << "\tProcessed local variable: " << newTarget->getName() << "\n";
       updateMetadata(module, (*it)->getValue(), newTarget, (*it)->getType()[0]);
-      //module.dump();
+
 #ifdef DEBUG
       verifyModule(module, AbortProcessAction);
 #endif

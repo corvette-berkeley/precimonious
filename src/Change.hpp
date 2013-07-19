@@ -14,17 +14,21 @@ using namespace std;
 typedef vector<Type*> Types;
 
 class Change {
-	public:
-		Change(Types, Value*);
-		~Change();
-		
-		Value* getValue();
+public:
+  Change(Types, Value*);
+  Change(Types, Value*, int);
+  ~Change();
+  
+  Value* getValue();
+  
+  Types getType();
+  
+  int getField();
 
-		Types getType();
-
-	private:
-		Value* value;
-		Types type;
+private:
+  Value* value;
+  Types type;
+  int field;
 };
 
 #endif

@@ -264,13 +264,25 @@ bool Transformer::transform(GetElementPtrInst& inst, Value* newTarget, Value* ol
     errs() << "\n";
 #endif
 
-    Type* temp_newType = getElementType(newType);
-    Type* temp_oldType = getElementType(oldType);
     newTarget = newGetElementPtr;
-    bool is_erased = Transformer::transform(it, newTarget, oldTarget, temp_newType, temp_oldType, alignment);
-
-    if (!is_erased)
+    bool is_erased = false;
+    if (dyn_cast<ArrayType>(newType) || dyn_cast<PointerType>(newType)) {
+      Type* temp_newType = getElementType(newType);
+      Type* temp_oldType = getElementType(oldType);
+      is_erased = Transformer::transform(it, newTarget, oldTarget, temp_newType, temp_oldType, alignment);
+    }
+    else {
+      if (newType->getTypeID() != oldType->getTypeID()) {
+	is_erased = Transformer::transform(it, newTarget, oldTarget, newType, oldType, alignment);
+      }
+      else {
+	// no further changes, but make sure we don't delete instruction!
+	is_erased = true;
+      }
+    }
+    if (!is_erased) {
       erase.push_back(dyn_cast<Instruction>(*it));
+    }
   }
 
 
@@ -280,8 +292,14 @@ bool Transformer::transform(GetElementPtrInst& inst, Value* newTarget, Value* ol
   }
     
   // for any uses left, replace them with bitcast instruction
-  BitCastInst *bitCast = new BitCastInst(newGetElementPtr, oldGetElementPtr->getType(), "", oldGetElementPtr);
-  oldGetElementPtr->replaceAllUsesWith(bitCast);  
+  if (dyn_cast<ArrayType>(newType) || dyn_cast<PointerType>(newType)) {
+    BitCastInst *bitCast = new BitCastInst(newGetElementPtr, oldGetElementPtr->getType(), "", oldGetElementPtr);
+    oldGetElementPtr->replaceAllUsesWith(bitCast);  
+  }
+  else {
+    // new struct case
+    oldGetElementPtr->replaceAllUsesWith(newGetElementPtr);
+  }
 
   // the old target was not erased
   return false;

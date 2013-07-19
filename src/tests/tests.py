@@ -35,7 +35,7 @@ def generate(env):
         return
 
     # simplified version uses sets instead of dictionaries
-    for subdir in env.Glob('#precision-tuning/tests/test*'):
+    for subdir in env.Glob('#src/tests/test*'):
         if not subdir.isdir():
             continue
 

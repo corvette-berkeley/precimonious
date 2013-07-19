@@ -21,7 +21,7 @@ def generate(env):
     if builder_name in env['BUILDERS']:
         return
 
-    env.Tool('pass-builder', toolpath=['#precision-tuning/tests'])
+    env.Tool('pass-builder', toolpath=['#src/tests'])
 
     builder = env.PASSBuilder(
         engine='PASS_PLUGIN',
@@ -32,7 +32,7 @@ def generate(env):
 
     env.AppendUnique(
         BUILDERS={builder_name: builder},
-        PASS_PLUGIN=env.File('#precision-tuning/Passes$SHLIBSUFFIX'),
+        PASS_PLUGIN=env.File('#src/Passes$SHLIBSUFFIX'),
         __PLUGIN_LD_LIBRARY_PATH=plugin_ld_library_path,
         )
 

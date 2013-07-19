@@ -115,10 +115,6 @@ static void printType(Type *type, raw_fd_ostream &outfile) {
 
 static string getID(Instruction &inst) {
   string id = "";
-  if (inst.hasMetadata()) {
-    string id = "";
-  }
-  /*
   if (MDNode *node = inst.getMetadata("corvette.inst.id")) {
     if (Value *value = node->getOperand(0)) {
       MDString *mdstring = cast<MDString>(value);
@@ -128,7 +124,6 @@ static string getID(Instruction &inst) {
   else {
     errs() << "WARNING: Did not find metadata\n";
   }
-  */
   return id;
 }
 
@@ -328,14 +323,12 @@ void CreateConfigFile::findLocalVariables(Function &function, raw_fd_ostream &ou
 	  
 	  outfile << "\"localVar\": {\n";
 
-    /*
 	  if (Instruction *i = function.getEntryBlock().getTerminator()) {
 	    if (MDNode *node = i->getMetadata("dbg")) {
 	      DILocation loc(node);
 	      outfile << "\t\t\"file\": \"" << loc.getFilename() << "\",\n";
 	    }
 	  }
-    */
 
 	  outfile << "\t\t\"function\": \"" << function.getName() << "\",\n";
 	  outfile << "\t\t\"name\": \"" << value->getName() << "\",\n";

@@ -76,6 +76,8 @@ plugin = env.SharedLibrary(
 	'Variables.cpp',
 	'Operators.cpp',
 	'RemoveDeadCasting.cpp',
+	'Structs.cpp',
+	'StrChange.cpp',
 	'config_parser.cpp',
 	'lib/vjson/json.cpp',
 	'lib/vjson/block_allocator.cpp'

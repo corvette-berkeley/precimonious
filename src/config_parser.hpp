@@ -6,9 +6,10 @@
 #include <map>
 #include <string>
 #include <utility>
+#include "StrChange.hpp"
 
 using namespace std;
 
-map<string, pair<string, string> > parse_config(const char *filename);
+map<string, StrChange*> parse_config(const char *filename);
 
 #endif

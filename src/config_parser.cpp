@@ -27,7 +27,7 @@ void parse_array(char* type, json_value *arr, const char* del) {
 }
 
 // parse call 
-void parse_call(json_value *call, map<string, pair<string, string> > &changes) {
+void parse_call(json_value *call, map<string, StrChange*> &changes) {
 	char type[1000] = {'\0'};
 	char name[100] = {'\0'}; 
 	char function[100] = {'\0'};
@@ -56,11 +56,12 @@ void parse_call(json_value *call, map<string, pair<string, string> > &changes) {
 	}
 
 	string idStr(id);
-	changes[idStr] = pair<string, string>("call", string(type));
+	StrChange *change = new StrChange("call", string(type), -1);
+	changes[idStr] = change;
 }
 
 // parse op
-void parse_op(json_value *op, map<string, pair<string, string> > &changes) {
+void parse_op(json_value *op, map<string, StrChange*> &changes) {
 	char type[100] = {'\0'};
 	char name[100] = {'\0'}; 
 	char function[100] = {'\0'};
@@ -89,21 +90,27 @@ void parse_op(json_value *op, map<string, pair<string, string> > &changes) {
 	}
 
 	string idStr(id);
-	changes[idStr] = pair<string, string>("op", string(type));
+	StrChange *change = new StrChange("op", string(type), -1);
+	changes[idStr] = change;
 }
 
 // parse localVar
-void parse_local_var(json_value *localVar, map<string, pair<string, string> > &changes) {
+void parse_local_var(json_value *localVar, map<string, StrChange*> &changes) {
 	char type[100] = {'\0'};
 	char id[100] = {'\0'};
 	char name[100] = {'\0'}; 
 	char function[100] = {'\0'};
+	char field[2] = {'\0'};
+	int iField = -1;
 
 	for (json_value *child = localVar->first_child; child; child = child->next_sibling) {
 		if (strcmp(child->name, "name") == 0) {
 			strcpy(name, child->string_value);
 		} else if (strcmp(child->name, "function") == 0) {
 			strcpy(function, child->string_value);
+		} else if (strcmp(child->name, "field") == 0) {
+		        strcpy(field, child->string_value);
+			iField = atoi(field);
 		} else if (strcmp(child->name, "type") == 0) {
 			if (child->type == JSON_ARRAY) {
 				parse_array(type, child, ", ");
@@ -117,11 +124,13 @@ void parse_local_var(json_value *localVar, map<string, pair<string, string> > &c
 	strcat(id, "@");
 	strcat(id, function);
 	string idStr(id);
-	changes[idStr] = pair<string, string>("localVar", string(type));
+
+	StrChange *change = new StrChange("localVar", string(type), iField);
+	changes[idStr] = change;
 }
 
 // parse globalVar
-void parse_global_var(json_value *globalVar, map<string, pair<string, string> > &changes) {
+void parse_global_var(json_value *globalVar, map<string, StrChange*> &changes) {
 	char type[100] = {'\0'};
 	char name[100] = {'\0'}; 
 
@@ -138,11 +147,12 @@ void parse_global_var(json_value *globalVar, map<string, pair<string, string> > 
 	}
 
 	string idStr(name);
-	changes[idStr] = pair<string, string>("globalVar", string(type));
+	StrChange *change = new StrChange("globalVar", string(type), -1);
+	changes[idStr] = change;
 }
 
 // parse json
-void parse_json(json_value *root, map<string, pair<string, string> > &changes) {
+void parse_json(json_value *root, map<string, StrChange*> &changes) {
 	for (json_value *child = root->first_child; child; child = child->next_sibling) {
 		if (strcmp(child->name, "globalVar") == 0) {
 			parse_global_var(child, changes);
@@ -157,9 +167,9 @@ void parse_json(json_value *root, map<string, pair<string, string> > &changes) {
 }
 
 // parse json
-map<string, pair<string, string> > parse_config(const char* filename) {
+map<string, StrChange*> parse_config(const char* filename) {
 	// initialize objects used by vjson
-	map<string, pair<string, string> > changes;
+	map<string, StrChange*> changes;
 	block_allocator mAllocator(1 << 10); 
 	json_value *root;
 

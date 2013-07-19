@@ -186,10 +186,6 @@ static void printType(Type *type, raw_fd_ostream &outfile) {
 
 static string getID(Instruction &inst) {
   string id = "";
-  if (inst.hasMetadata()) {
-    id = "";
-  }
-  /*
   if (MDNode *node = inst.getMetadata("corvette.inst.id")) {
     if (Value *value = node->getOperand(0)) {
       MDString *mdstring = cast<MDString>(value);
@@ -199,7 +195,6 @@ static string getID(Instruction &inst) {
   else {
     errs() << "WARNING: Did not find metadata\n";
   }
-  */
   return id;
 }
 
@@ -221,6 +216,29 @@ static bool isFPArray(Type *type) {
 }
 
 
+static bool isFPScalar(Type *type) {
+  return type->isFloatingPointTy();
+}
+
+
+void CreateSearchFile::printGlobal(raw_fd_ostream &outfile, bool &first, string name, Type *type) {
+
+  if (first) {
+    first = false;
+  }
+  else {
+    outfile << ",\n";
+  }
+  
+  outfile << "\t{\"globalVar\": {\n";
+  outfile << "\t\t\"name\": \"" << name << "\",\n";
+  outfile << "\t\t\"type\": ";	
+  printType(type, outfile);
+  outfile << "\t}}";
+  return;
+}
+
+
 void CreateSearchFile::findGlobalVariables(Module &module, raw_fd_ostream &outfile, bool &first) {
 
   for (Module::global_iterator it = module.global_begin(); it != module.global_end(); it++) {
@@ -232,24 +250,9 @@ void CreateSearchFile::findGlobalVariables(Module &module, raw_fd_ostream &outfi
 	PointerType* pointerType = global->getType();      
 	Type* elementType = pointerType->getElementType();
 	
-	if ((OnlyScalars && elementType->isFloatingPointTy()) ||
-	    (OnlyArrays && isFPArray(elementType)) || 
-	    (!OnlyScalars && !OnlyArrays)) {
-	  
+	if (isFPScalar(elementType) || isFPArray(elementType)) {	  
 	  if (name.find('.') == string::npos) {
-	    
-	    if (first) {
-	      first = false;
-	    }
-	    else {
-	      outfile << ",\n";
-	    }
-	    
-	    outfile << "\t{\"globalVar\": {\n";
-	    outfile << "\t\t\"name\": \"" << global->getName() << "\",\n";
-	    outfile << "\t\t\"type\": ";	
-	    printType(elementType, outfile);
-	    outfile << "\t}}";
+	    printGlobal(outfile, first, name, elementType);
 	  }
 	}
       }
@@ -335,6 +338,33 @@ static Type* findLocalType(Value *value) {
 }
 
 
+void CreateSearchFile::printLocal(Function &function, raw_fd_ostream &outfile, bool &first, string name, Type *type) {
+
+  if (first) {
+    first = false;
+  }
+  else {
+    outfile << ",\n";
+  }
+  
+  outfile << "\t{\"localVar\": {\n";
+  
+  if (Instruction *i = function.getEntryBlock().getTerminator()) {
+    if (MDNode *node = i->getMetadata("dbg")) {
+      DILocation loc(node);
+      outfile << "\t\t\"file\": \"" << loc.getFilename() << "\",\n";
+    }
+  }
+  
+  outfile << "\t\t\"function\": \"" << function.getName() << "\",\n";
+  outfile << "\t\t\"name\": \"" << name << "\",\n";
+  outfile << "\t\t\"type\": ";
+  printType(type, outfile);
+  outfile << "\t}}"; 
+  return;
+}
+
+
 void CreateSearchFile::findLocalVariables(Function &function, raw_fd_ostream &outfile, bool &first) {
 
   const ValueSymbolTable& symbolTable = function.getValueSymbolTable();
@@ -343,42 +373,16 @@ void CreateSearchFile::findLocalVariables(Function &function, raw_fd_ostream &ou
   for(; it != symbolTable.end(); it++) {
     Value *value = it->second;
     Type *type = findLocalType(value);
+    string name = value->getName();
 
-    if (type) {
+    if ((name.find('.') == string::npos) && type) {
 
-      if ((OnlyScalars && type->isFloatingPointTy()) ||
-	  (OnlyArrays && isFPArray(type)) || 
-	  (!OnlyScalars && !OnlyArrays)) {
-	
-	if (value->getName().find('.') == string::npos) {
-
-	  if (first) {
-	    first = false;
-	  }
-	  else {
-	    outfile << ",\n";
-	  }
-	  
-	  outfile << "\t{\"localVar\": {\n";
-
-      /*
-	  if (Instruction *i = function.getEntryBlock().getTerminator()) {
-	    if (MDNode *node = i->getMetadata("dbg")) {
-	      DILocation loc(node);
-	      outfile << "\t\t\"file\": \"" << loc.getFilename() << "\",\n";
-	    }
-	  }
-      */
-
-	  outfile << "\t\t\"function\": \"" << function.getName() << "\",\n";
-	  outfile << "\t\t\"name\": \"" << value->getName() << "\",\n";
-	  outfile << "\t\t\"type\": ";	  
-	  printType(type, outfile);
-	  outfile << "\t}}";
-	} 
+      if (isFPScalar(type) || isFPArray(type) /*|| isStructWithFPFields(type)*/) {
+	printLocal(function, outfile, first, name, type);
       }
     }
   }
+
  return;
 }
 

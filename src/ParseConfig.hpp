@@ -2,6 +2,7 @@
 #define PARSE_CONFIG
 
 #include "Change.hpp"
+#include "StrChange.hpp"
 #include "config_parser.hpp"
 #include <llvm/Analysis/DebugInfo.h>
 #include <llvm/Pass.h>
@@ -47,7 +48,7 @@ class ParseConfig : public ModulePass {
 
                 static Value* findAlloca(Value*, Function*);
 
-		map<string, pair<string, string> > types;
+		map<string, StrChange*> types;
 
 		map<ChangeType, Changes> changes;
 

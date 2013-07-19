@@ -35,6 +35,8 @@ public:
 
   AllocaInst* changeLocal(Value* value, PointerType* type);
 
+  AllocaInst* changeLocal(Value* value, StructType* type/*, int field*/);
+
   virtual void getAnalysisUsage(AnalysisUsage &AU) const;
 
   virtual bool runOnModule(Module &module);

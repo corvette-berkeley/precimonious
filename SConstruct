@@ -93,10 +93,7 @@ env.AppendUnique(
 SConscript(
     dirs=[
         # our stuff
-	'design-document',
-	'paper',
 	'src',
-	'report',
         ],
     exports='env',
     )

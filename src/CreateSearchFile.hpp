@@ -44,7 +44,11 @@ public:
   void findGlobalVariables(Module &module, raw_fd_ostream &outfile, bool &first);
 
   void findLocalVariables(Function &function, raw_fd_ostream &outfile, bool &first);
-  
+
+  void printLocal(Function &function, raw_fd_ostream &outfile, bool &first, string name, Type *type);
+
+  void printGlobal(raw_fd_ostream &outfile, bool &first, string name, Type *type);
+
   void findOperators(Function &function, raw_fd_ostream &outfile, bool &first);
 
   virtual void getAnalysisUsage(AnalysisUsage &AU) const;

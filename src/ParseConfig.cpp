@@ -165,13 +165,41 @@ bool ParseConfig::runOnFunction(Function &f) {
   return false;
 }
 
+static Type* constructStruct(Value *value, unsigned int fieldToChange, Type *fieldType) {
+
+  Type *type = value->getType();
+  StructType *newStructType = NULL;
+
+  if (PointerType *pointerType = dyn_cast<PointerType>(type)) {
+    if (StructType *oldStructType = dyn_cast<StructType>(pointerType->getElementType())) {
+
+      vector<Type*> fields;
+      
+      for(unsigned int i = 0; i < oldStructType->getNumElements(); i++) {
+	if (i != fieldToChange) {
+	  fields.push_back(oldStructType->getElementType(i));
+	}
+	else {
+	  // replace old field type with new type
+	  fields.push_back(fieldType);
+	}
+      }
+
+      ArrayRef<Type*> *arrayRefFields = new ArrayRef<Type*>(fields);
+      newStructType = StructType::create(*arrayRefFields, oldStructType->getName());
+    }
+  }
+  return newStructType;
+}
+
 
 void ParseConfig::updateChanges(string id, Value* value, LLVMContext& context) {
-  map<string, pair<string, string> >::iterator typeIt;
+  map<string, StrChange*>::iterator typeIt;
   typeIt = types.find(id);
   if (typeIt != types.end()) {
-    string changeType = typeIt->second.first;
-    string typeStrs = typeIt->second.second;
+    string changeType = typeIt->second->getClassification();
+    string typeStrs = typeIt->second->getTypes();
+    int field = typeIt->second->getField();
     Types type;
     // split type string
     // (in case of function there are two or more types,
@@ -254,11 +282,16 @@ void ParseConfig::updateChanges(string id, Value* value, LLVMContext& context) {
       }
     } while (iss);
 
+    // SPECIAL CASE: structs
+    if (field >= 0) {
+      type[0] = constructStruct(value, field, type[0]); // first element?
+    }
+
     if (type.size() > 0) { // todo: this fix does not work in case of function call
       if (changeType.compare("globalVar") == 0) {
-        changes.find(GLOBALVAR)->second.push_back(new Change(type, value));
+        changes.find(GLOBALVAR)->second.push_back(new Change(type, value, field));
       } else if (changeType.compare("localVar") == 0) {
-        changes.find(LOCALVAR)->second.push_back(new Change(type, value));
+        changes.find(LOCALVAR)->second.push_back(new Change(type, value, field));
       } else if (changeType.compare("op") == 0) {
         changes.find(OP)->second.push_back(new Change(type, value));
       } else if (changeType.compare("call") == 0) {
