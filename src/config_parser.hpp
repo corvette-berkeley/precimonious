@@ -7,6 +7,7 @@
 #include <string>
 #include <utility>
 #include "StrChange.hpp"
+#include "FuncStrChange.hpp"
 
 using namespace std;
 

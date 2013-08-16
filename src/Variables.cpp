@@ -60,8 +60,34 @@ static bool diffTypes(Type *type1, Type *type2) {
              return true;
            }
          }
+	 else if (PointerType *ep1 = dyn_cast<PointerType>(elementType1)) {
+	   if (PointerType *ep2 = dyn_cast<PointerType>(elementType2)) {
+	     return diffTypes(ep1, ep2);
+	   }
+	 }
        }
      }
+
+     // Case: Arrays FP
+     if (ArrayType *ptype1 = dyn_cast<ArrayType>(type1)) {
+       if (ArrayType *ptype2 = dyn_cast<ArrayType>(type2)) {
+
+         Type *elementType1 = ptype1->getElementType();
+         Type *elementType2 = ptype2->getElementType();
+
+         if (elementType1->isFloatingPointTy() && elementType2->isFloatingPointTy()) {
+           if (elementType1->getTypeID() != elementType2->getTypeID()) {
+             return true;
+           }
+         }
+         else if (ArrayType *ep1 = dyn_cast<ArrayType>(elementType1)) {
+           if (ArrayType *ep2 = dyn_cast<ArrayType>(elementType2)) {
+             return diffTypes(ep1, ep2);
+           }
+         }
+       }
+     }
+
    }
    return false;
 }
@@ -104,16 +130,31 @@ void Variables::changeGlobal(Change* change, Module &module) {
 
   if (diffTypes(oldType, newType)) {      
     Constant *initializer;
-    if (PointerType *newPointerType = dyn_cast<PointerType>(newType))
-    {
+    GlobalVariable* newTarget;
+
+    if (PointerType *newPointerType = dyn_cast<PointerType>(newType)) {
       initializer = ConstantPointerNull::get(newPointerType);
+      newTarget = new GlobalVariable(module, newType, false, GlobalValue::CommonLinkage, initializer, "");
     }
-    else
-    {
+    else if (ArrayType * atype = dyn_cast<ArrayType>(newType)) {
+
+      // preparing initializer
+      Type *temp = Type::getFloatTy(module.getContext());
+      vector<Constant*> operands;
+      operands.push_back(ConstantFP::get(temp, 0));
+      ArrayRef<Constant*> *arrayRef = new ArrayRef<Constant*>(operands);
+      initializer = ConstantArray::get(atype, *arrayRef);
+
+      newTarget = new GlobalVariable(module, newType, false, GlobalValue::CommonLinkage, initializer, "");
+    }
+    else {
       initializer = ConstantFP::get(newType, 0);
+      newTarget = new GlobalVariable(module, newType, false, GlobalValue::CommonLinkage, initializer, "");
     }
 
+    /*
     GlobalVariable* newTarget = new GlobalVariable(module, newType, false, GlobalValue::CommonLinkage, initializer, "");
+    */
 
     unsigned alignment = getAlignment(newType);
     newTarget->setAlignment(alignment);
@@ -490,6 +531,20 @@ MDNode* Variables::getTypeMetadata(Module &module, DIVariable &oldDIVar, Type *n
     operands.push_back(getInt32(0));
     break; 
   }
+  case Type::PointerTyID: { // added on 07/26
+    Type *elementType = (dyn_cast<PointerType>(newType))->getElementType();
+    operands.push_back(getInt32(786447));
+    operands.push_back(oldDIType->getOperand(1)); // preserve old file descriptor
+    operands.push_back(oldDIType->getOperand(2)); // preserve old context
+    operands.push_back(oldDIType->getOperand(3)); // preserve old name
+    operands.push_back(oldDIType->getOperand(4)); // preserve old line number
+    operands.push_back(oldDIType->getOperand(5)); // preserve old size in bits
+    operands.push_back(oldDIType->getOperand(6)); // preserve old align in bits
+    operands.push_back(oldDIType->getOperand(7)); // preserve old offset in bits
+    operands.push_back(oldDIType->getOperand(8)); // preserve old flags
+    operands.push_back(getTypeMetadata(module, oldDIVar, elementType)); // element basic type
+    break; 
+  }
   default:
     errs() << "WARNING: getTypeMetadata.\n";
     newType->dump();
@@ -507,6 +562,7 @@ void Variables::updateMetadata(Module& module, Value* oldTarget, Value* newTarge
   vector<Instruction*> to_remove;
   if (newTarget) {
     errs() << "\tChanging metadata for: " << newTarget->getName() << "\n";
+    bool changed = false;
 
     for(Module::iterator f = module.begin(), fe = module.end(); f != fe; f++) {
       for(Function::iterator b = f->begin(), be = f->end(); b != be; b++) {
@@ -544,6 +600,7 @@ void Variables::updateMetadata(Module& module, Value* oldTarget, Value* newTarge
 		    newDeclare->setMetadata(id, oldDeclare->getMetadata(id));
 		  }
 		  to_remove.push_back(oldDeclare); // can't erase while iterating through instructions
+		  changed = true;
 		}
 	      }
 	    }
@@ -553,6 +610,9 @@ void Variables::updateMetadata(Module& module, Value* oldTarget, Value* newTarge
     }
     for(unsigned i = 0; i < to_remove.size(); i++) {
       to_remove[i]->eraseFromParent();
+    }
+    if (!changed) {
+      errs() << "\tNo metadata to change\n";
     }
   }
   return;
@@ -577,6 +637,7 @@ bool Variables::runOnModule(Module &module) {
 
 #ifdef DEBUG
       verifyModule(module, AbortProcessAction);
+      errs() << "**** MODULE VERIFIES after a single change ****\n";
 #endif
     }
   }

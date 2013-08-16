@@ -200,16 +200,23 @@ static string getID(Instruction &inst) {
 
 
 static bool isFPArray(Type *type) {
+
   if (ArrayType *array = dyn_cast<ArrayType>(type)) {
     type = array->getElementType();
     if (type->isFloatingPointTy()) {
       return true;
+    }
+    else {
+      return isFPArray(type);
     }
   }
   else if (PointerType *pointer = dyn_cast<PointerType>(type)) {
     type = pointer->getElementType();
     if (type->isFloatingPointTy()) {
       return true;
+    }
+    else {
+      return isFPArray(type);
     }
   }
   return false;
@@ -246,10 +253,10 @@ void CreateSearchFile::findGlobalVariables(Module &module, raw_fd_ostream &outfi
     if (GlobalVariable *global = dyn_cast<GlobalVariable>(value)) {
       string name = global->getName();
 
-      if (includedVars.find(name) != includedVars.end()) {
+      if (includedGlobalVars.find(name) != includedGlobalVars.end()) {
 	PointerType* pointerType = global->getType();      
 	Type* elementType = pointerType->getElementType();
-	
+
 	if (isFPScalar(elementType) || isFPArray(elementType)) {	  
 	  if (name.find('.') == string::npos) {
 	    printGlobal(outfile, first, name, elementType);
@@ -290,16 +297,31 @@ bool CreateSearchFile::doInitialization(Module &) {
   inFile.close();
 
   // reading global variables to include
-  inFile.open (IncludedVarsFileName.c_str(), ifstream::in);
+  inFile.open (IncludedGlobalVarsFileName.c_str(), ifstream::in);
   if (!inFile) {
-    errs() << "Unable to open " << IncludedVarsFileName << '\n';
+    errs() << "Unable to open " << IncludedGlobalVarsFileName << '\n';
     exit(1);
   }
   
   while(inFile >> name) {
-    includedVars.insert(name);
+    includedGlobalVars.insert(name);
   }
   inFile.close();
+
+  // reading local variables to exclude
+  // assuming unique names given by LLVM, so no need to include function name
+  inFile.open (ExcludedLocalVarsFileName.c_str(), ifstream::in);
+  while(inFile >> name) {
+    excludedLocalVars.insert(name);
+  }
+  inFile.close();
+
+  // populating function calls
+  functionCalls.insert("log");
+  //functionCalls.insert("sqrt");
+  functionCalls.insert("cos"); //FT
+  functionCalls.insert("sin"); //FT
+  functionCalls.insert("acos"); //funarc
 
   return false;
 }
@@ -372,17 +394,18 @@ void CreateSearchFile::findLocalVariables(Function &function, raw_fd_ostream &ou
   
   for(; it != symbolTable.end(); it++) {
     Value *value = it->second;
-    Type *type = findLocalType(value);
     string name = value->getName();
 
-    if ((name.find('.') == string::npos) && type) {
+    if (excludedLocalVars.find(name) == excludedLocalVars.end()) {
 
-      if (isFPScalar(type) || isFPArray(type) /*|| isStructWithFPFields(type)*/) {
-	printLocal(function, outfile, first, name, type);
+      Type *type = findLocalType(value);
+      if ((name.find('.') == string::npos) && type) {	
+	if (isFPScalar(type) || isFPArray(type) /*|| isStructWithFPFields(type)*/) {
+	  printLocal(function, outfile, first, name, type);
+	}
       }
     }
   }
-
  return;
 }
 
@@ -458,27 +481,39 @@ void CreateSearchFile::findOperators(Function &function, raw_fd_ostream &outfile
 }
 
 
-void CreateSearchFile::findFunctionCalls(Function &function/*, raw_fd_ostream &outfile*/) {
+void CreateSearchFile::findFunctionCalls(Function &function, raw_fd_ostream &outfile, bool &first) {
 
   for(Function::iterator b = function.begin(), be = function.end(); b != be; b++) {
     for(BasicBlock::iterator i = b->begin(), ie = b->end(); i != ie; i++) {
 
       if (CallInst *callInst = dyn_cast<CallInst>(i)) {
-	Function *callee = callInst->getCalledFunction();
-	if (callee && !callee->isDeclaration()) {
-	  errs() << "\t\"call\": {\n";
-	  errs() << "\t\t\"scope\": \"\",\n";
-	  errs() << "\t\t\"name\": \"" << callee->getName() << "\",\n";
-	  errs() << "\t\t\"type\": [\"PENDING\"]\n";
-	  errs() << "\t},\n";
-	}
+        Function *callee = callInst->getCalledFunction();
+
+        if (callee) {
+	  string name = callee->getName();
+	  if (functionCalls.find(name) != functionCalls.end()) {
+	    if (first) {
+	      first = false;
+	    }
+	    else {
+	      outfile << ",\n";
+	    }
+	    
+	    outfile << "\t{\"call\": {\n";
+	    outfile << "\t\t\"id\": \"" << getID(*i) << "\",\n";
+	    outfile << "\t\t\"function\": \"" << function.getName() << "\",\n";
+	    outfile << "\t\t\"name\": \"" << name << "\",\n";
+	    outfile << "\t\t\"switch\": " << "[\"" << name << "f\",\"" << name << "\"]" << ",\n";
+	    outfile << "\t\t\"type\": " << "[[\"float\",\"float\"], [\"double\",\"double\"]]"<< "\n";
+	    outfile << "\t}}";
+	  }
+        }
       }
     }
   }
 
   return;
 }
-
 
 bool CreateSearchFile::runOnFunction(Function &function, raw_fd_ostream &outfile, bool &first) {
   findLocalVariables(function, outfile, first);
@@ -487,7 +522,10 @@ bool CreateSearchFile::runOnFunction(Function &function, raw_fd_ostream &outfile
     findOperators(function, outfile, first);
   }
 
-  // findFunctionCalls(function);
+  if (ListFunctions) {
+    findFunctionCalls(function, outfile, first);
+  }
+
   return false;
 }
 

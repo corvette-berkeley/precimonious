@@ -1,0 +1,6 @@
+{
+	"globalVar": {
+		"name": "a",
+		"type": "float*"
+	}
+}

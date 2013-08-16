@@ -123,7 +123,7 @@ bool Transformer::transform(StoreInst& inst, Value* newTarget, Value* oldTarget,
 
   StoreInst* storeInst = &inst;
   Value *valueOp = storeInst->getValueOperand();
-  StoreInst* newStore = NULL;
+  StoreInst* newStore UNUSED = NULL;
   Value *destination = storeInst->getOperand(1);
 
   if (dyn_cast<PointerType>(newType)) {
@@ -180,8 +180,6 @@ bool Transformer::transform(StoreInst& inst, Value* newTarget, Value* oldTarget,
     errs() << "the new store is NULL\n";
   }
 #endif
-
-  errs() << &newStore << "\n";
 
   // the old target is not erased
   return false;
@@ -270,6 +268,15 @@ bool Transformer::transform(GetElementPtrInst& inst, Value* newTarget, Value* ol
       Type* temp_newType = getElementType(newType);
       Type* temp_oldType = getElementType(oldType);
       is_erased = Transformer::transform(it, newTarget, oldTarget, temp_newType, temp_oldType, alignment);
+    }
+    else if (CallInst* callInst = dyn_cast<CallInst>(*it)) {
+      errs() << "====a call from getElementPtr\n";
+      BitCastInst *bitCast = new BitCastInst(newTarget, oldGetElementPtr->getType(), "", callInst);
+      bitCast->dump();
+      for (unsigned i = 0; i < callInst->getNumOperands(); i++) {
+	if (callInst->getOperand(i) == oldGetElementPtr)
+	  callInst->setArgOperand(i, bitCast);
+      }
     }
     else {
       if (newType->getTypeID() != oldType->getTypeID()) {
@@ -411,22 +418,6 @@ bool Transformer::transform(CallInst& inst, Value* newTarget UNUSED, Value* oldT
 #ifdef DEBUG
     errs() << "CALLINST: Nothing done?\n";
 #endif
-    /*
-    oldCall->dump();
-    if (PointerType* newPointerType = dyn_cast<PointerType>(newType)) {
-      BitCastInst *bitCast = new BitCastInst(newTarget, oldType, "", oldCall);
-
-      for (unsigned i = 0; i < oldCall->getNumArgOperands(); i++) {
-        Value* arg = oldCall->getArgOperand(i);
-        Type* type = arg->getType();
-        if (PointerType* pointerType = dyn_cast<PointerType>(type)) {
-          if (pointerType->getElementType()->getTypeID() == newPointerType->getElementType()->getTypeID()) {
-            oldCall->setArgOperand(i, bitCast);
-          } 
-        }
-      }
-    }
-    */
   }
 
   // the old target was erased

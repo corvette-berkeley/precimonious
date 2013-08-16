@@ -34,6 +34,7 @@ void parse_call(json_value *call, map<string, StrChange*> &changes) {
 	char id[100] = {'\0'};
 	char file[100] = {'\0'};
 	char line[100] = {'\0'};
+  char swit[100] = {'\0'};
 
 	for (json_value *child = call->first_child; child; child = child->next_sibling) {
 		if (strcmp(child->name, "id") == 0) {
@@ -46,6 +47,8 @@ void parse_call(json_value *call, map<string, StrChange*> &changes) {
 			strcpy(line, child->string_value);
 		} else if (strcmp(child->name, "name") == 0) {
 			strcpy(name, child->string_value);
+		} else if (strcmp(child->name, "switch") == 0) {
+			strcpy(swit, child->string_value);
 		} else if (strcmp(child->name, "type") == 0) {
 			if (child->first_child->type == JSON_ARRAY) {
 				parse_array(type, child, ", ");
@@ -56,7 +59,7 @@ void parse_call(json_value *call, map<string, StrChange*> &changes) {
 	}
 
 	string idStr(id);
-	StrChange *change = new StrChange("call", string(type), -1);
+	FuncStrChange *change = new FuncStrChange("call", string(type), -1, string(swit));
 	changes[idStr] = change;
 }
 

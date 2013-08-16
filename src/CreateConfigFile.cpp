@@ -16,9 +16,11 @@ using namespace llvm;
 cl::opt<string> FileName("filename", cl::value_desc("filename"), cl::desc("The file name"), cl::init("file.json"));
 cl::opt<string> ExcludedFunctionsFileName("exclude", cl::value_desc("filename"), cl::desc("List of functions to exclude (if in dependencies)"), cl::init("exclude.txt"));
 cl::opt<string> IncludedFunctionsFileName("include", cl::value_desc("filename"), cl::desc("List of functions to include (dependencies)"), cl::init("include.txt"));
-cl::opt<string> IncludedVarsFileName("include_vars", cl::value_desc("filename"), cl::desc("List of global variables to include"), cl::init("include_global.txt"));
+cl::opt<string> IncludedGlobalVarsFileName("include_global_vars", cl::value_desc("filename"), cl::desc("List of global variables to include"), cl::init("include_global.txt"));
+cl::opt<string> ExcludedLocalVarsFileName("exclude_local_vars", cl::value_desc("filename"), cl::desc("List of local variables to exclude"), cl::init("exclude_local.txt"));
 cl::opt<bool> PythonFormat("pformat", cl::value_desc("flag"), cl::desc("Use python format"), cl::init(false));
 cl::opt<bool> ListOperators("ops", cl::value_desc("flag"), cl::desc("Print operators"), cl::init(false));
+cl::opt<bool> ListFunctions("funs", cl::value_desc("flag"), cl::desc("Print functions"), cl::init(false));
 cl::opt<bool> OnlyScalars("only-scalars", cl::value_desc("flag"), cl::desc("Print only scalars"), cl::init(false));
 cl::opt<bool> OnlyArrays("only-arrays", cl::value_desc("flag"), cl::desc("Print only arrays"), cl::init(false));
 
@@ -134,11 +136,17 @@ static bool isFPArray(Type *type) {
     if (type->isFloatingPointTy()) {
       return true;
     }
+    else {
+      return isFPArray(type);
+    }
   }
   else if (PointerType *pointer = dyn_cast<PointerType>(type)) {
     type = pointer->getElementType();
     if (type->isFloatingPointTy()) {
       return true;
+    }
+    else {
+      return isFPArray(type);
     }
   }
   return false;
@@ -152,7 +160,7 @@ void CreateConfigFile::findGlobalVariables(Module &module, raw_fd_ostream &outfi
     if (GlobalVariable *global = dyn_cast<GlobalVariable>(value)) {
       string name = global->getName();
 
-      if (includedVars.find(name) != includedVars.end()) {
+      if (includedGlobalVars.find(name) != includedGlobalVars.end()) {
 	PointerType* pointerType = global->getType();      
 	Type* elementType = pointerType->getElementType();
 	
@@ -223,16 +231,25 @@ bool CreateConfigFile::doInitialization(Module &) {
   inFile.close();
 
   // reading global variables to include
-  inFile.open (IncludedVarsFileName.c_str(), ifstream::in);
+  inFile.open (IncludedGlobalVarsFileName.c_str(), ifstream::in);
   if (!inFile) {
-    errs() << "Unable to open " << IncludedVarsFileName << '\n';
+    errs() << "Unable to open " << IncludedGlobalVarsFileName << '\n';
     exit(1);
   }
   
   while(inFile >> name) {
-    includedVars.insert(name);
+    includedGlobalVars.insert(name);
   }
   inFile.close();
+
+  // reading local variables to exclude
+  // assuming unique names given by LLVM, so no need to include function name
+  inFile.open (ExcludedLocalVarsFileName.c_str(), ifstream::in);
+  while(inFile >> name) {
+    excludedLocalVars.insert(name);
+  }
+  inFile.close();
+
 
   if (PythonFormat) {
     errs() << "Using python format\n";
@@ -241,6 +258,12 @@ bool CreateConfigFile::doInitialization(Module &) {
     errs() << "NOT using python format\n";
   }
   
+  // populating function calls
+  functionCalls.insert("log");
+  //functionCalls.insert("sqrt");
+  functionCalls.insert("cos"); //FT
+  functionCalls.insert("sin"); //FT
+  functionCalls.insert("acos"); //funarc
 
   return false;
 }
@@ -299,54 +322,57 @@ void CreateConfigFile::findLocalVariables(Function &function, raw_fd_ostream &ou
   
   for(; it != symbolTable.end(); it++) {
     Value *value = it->second;
-    Type *type = findLocalType(value);
+    string name = value->getName();
 
-    if (type) {
+    if (excludedLocalVars.find(name) == excludedLocalVars.end()) {
+      Type *type = findLocalType(value);
 
-      if ((OnlyScalars && type->isFloatingPointTy()) ||
-	  (OnlyArrays && isFPArray(type)) || 
-	  (!OnlyScalars && !OnlyArrays)) {
-
-	if (value->getName().find('.') == string::npos) {
+      if (type) {
+	
+	if ((OnlyScalars && type->isFloatingPointTy()) ||
+	    (OnlyArrays && isFPArray(type)) || 
+	    (!OnlyScalars && !OnlyArrays)) {
 	  
-	  if (first) {
-	    first = false;
-	  }
-	  else {
-	    outfile << ",\n";
-	  }
-	  
-	  outfile << "\t";
-	  if (PythonFormat) {
-	    outfile << "{";
-	  }
-	  
-	  outfile << "\"localVar\": {\n";
-
-	  if (Instruction *i = function.getEntryBlock().getTerminator()) {
-	    if (MDNode *node = i->getMetadata("dbg")) {
-	      DILocation loc(node);
-	      outfile << "\t\t\"file\": \"" << loc.getFilename() << "\",\n";
+	  if (value->getName().find('.') == string::npos) {
+	    
+	    if (first) {
+	      first = false;
 	    }
-	  }
-
-	  outfile << "\t\t\"function\": \"" << function.getName() << "\",\n";
-	  outfile << "\t\t\"name\": \"" << value->getName() << "\",\n";
-	  outfile << "\t\t\"type\": ";
-	  
-	  outfile << "\"";
-	  printType(type, outfile);
-	  outfile << "\"\n";
-	  
-	  outfile << "\t}";
-	  if (PythonFormat) {
-	    outfile << "}";
+	    else {
+	      outfile << ",\n";
+	    }
+	    
+	    outfile << "\t";
+	    if (PythonFormat) {
+	      outfile << "{";
+	    }
+	    
+	    outfile << "\"localVar\": {\n";
+	    
+	    if (Instruction *i = function.getEntryBlock().getTerminator()) {
+	      if (MDNode *node = i->getMetadata("dbg")) {
+		DILocation loc(node);
+		outfile << "\t\t\"file\": \"" << loc.getFilename() << "\",\n";
+	      }
+	    }
+	    
+	    outfile << "\t\t\"function\": \"" << function.getName() << "\",\n";
+	    outfile << "\t\t\"name\": \"" << value->getName() << "\",\n";
+	    outfile << "\t\t\"type\": ";
+	    
+	    outfile << "\"";
+	    printType(type, outfile);
+	    outfile << "\"\n";
+	    
+	    outfile << "\t}";
+	    if (PythonFormat) {
+	      outfile << "}";
+	    }
 	  }
 	}
       }
-    }
-  } 
-    
+    } 
+  }
  return;
 }
 
@@ -448,20 +474,43 @@ void CreateConfigFile::findOperators(Function &function, raw_fd_ostream &outfile
 }
 
 
-void CreateConfigFile::findFunctionCalls(Function &function/*, raw_fd_ostream &outfile*/) {
+void CreateConfigFile::findFunctionCalls(Function &function, raw_fd_ostream &outfile, bool &first) {
 
   for(Function::iterator b = function.begin(), be = function.end(); b != be; b++) {
     for(BasicBlock::iterator i = b->begin(), ie = b->end(); i != ie; i++) {
 
       if (CallInst *callInst = dyn_cast<CallInst>(i)) {
-	Function *callee = callInst->getCalledFunction();
-	if (callee && !callee->isDeclaration()) {
-	  errs() << "\t\"call\": {\n";
-	  errs() << "\t\t\"scope\": \"\",\n";
-	  errs() << "\t\t\"name\": \"" << callee->getName() << "\",\n";
-	  errs() << "\t\t\"type\": [\"PENDING\"]\n";
-	  errs() << "\t},\n";
-	}
+        Function *callee = callInst->getCalledFunction();
+
+	if (callee) {
+          string name = callee->getName();
+          if (functionCalls.find(name) != functionCalls.end()) {
+
+	    if (first) {
+	      first = false;
+	    }
+	    else {
+	      outfile << ",\n";
+	    }
+	    
+	    outfile << "\t";
+	    if (PythonFormat) {
+	      outfile << "{";
+	    }
+	    
+	    outfile << "\"call\": {\n";
+	    outfile << "\t\t\"id\": \"" << getID(*i) << "\",\n";
+	    outfile << "\t\t\"function\": \"" << function.getName() << "\",\n";
+	    outfile << "\t\t\"name\": \"" << name << "\",\n";
+            outfile << "\t\t\"switch\": \"" << name << "\",\n";
+	    outfile << "\t\t\"type\": " << "[\"double\",\"double\"]"<< "\n";
+	    outfile << "\t}";
+	    
+	    if (PythonFormat) {
+	      outfile << "}";
+	    }
+	  }
+        }
       }
     }
   }
@@ -469,14 +518,16 @@ void CreateConfigFile::findFunctionCalls(Function &function/*, raw_fd_ostream &o
   return;
 }
 
-
 bool CreateConfigFile::runOnFunction(Function &function, raw_fd_ostream &outfile, bool &first) {
   findLocalVariables(function, outfile, first);
 
   if (ListOperators) {
     findOperators(function, outfile, first);
   }
-    // findFunctionCalls(function);
+
+  if (ListFunctions) {
+    findFunctionCalls(function, outfile, first);
+  }
   return false;
 }
 

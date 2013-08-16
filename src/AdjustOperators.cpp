@@ -1,5 +1,6 @@
 #include "AdjustOperators.hpp"
 #include "Variables.hpp"
+#include "FunctionCalls.hpp"
 
 #include <llvm/Module.h>
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
@@ -246,7 +247,8 @@ void AdjustOperators::changeFCmpInst(FCmpInst* oldTarget) {
 
 
 void AdjustOperators::getAnalysisUsage(AnalysisUsage &AU __attribute__((unused))) const {
-  AU.addRequired<Variables>();
+  //AU.addRequired<Variables>();
+  AU.addRequired<FunctionCalls>();
   return;
 }
 

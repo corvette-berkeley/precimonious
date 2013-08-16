@@ -1,6 +1,9 @@
 #include "ParseConfig.hpp"
 
 #include "Change.hpp"
+#include "StrChange.hpp"
+#include "FuncStrChange.hpp"
+#include "FunctionChange.hpp"
 #include "CreateIDBitcode.hpp"
 #include "config_parser.hpp"
 #include "vjson/json.h"
@@ -105,6 +108,9 @@ bool ParseConfig::runOnModule(Module &M) {
     }
   }
 
+  /**
+   * Printing INFO message.
+   */
   for (map<ChangeType, Changes>::iterator im = changes.begin(); im != changes.end(); im++) {
     ChangeType changeType = im->first;
     Changes changeVector = im->second;
@@ -295,7 +301,9 @@ void ParseConfig::updateChanges(string id, Value* value, LLVMContext& context) {
       } else if (changeType.compare("op") == 0) {
         changes.find(OP)->second.push_back(new Change(type, value));
       } else if (changeType.compare("call") == 0) {
-        changes.find(CALL)->second.push_back(new Change(type, value));
+        FuncStrChange* change = (FuncStrChange*) typeIt->second;
+        string swit = change->getSwitch();
+        changes.find(CALL)->second.push_back(new FunctionChange(type, value, swit));
       }
     }
   }
@@ -323,7 +331,7 @@ Value* ParseConfig::findAlloca(Value *value, Function *function) {
 
 void ParseConfig::getAnalysisUsage(AnalysisUsage &AU) const {
   AU.setPreservesAll();
-  //AU.addRequired<CreateIDBitcode>();
+  AU.addRequired<CreateIDBitcode>();
 }
 
 char ParseConfig::ID = 0;

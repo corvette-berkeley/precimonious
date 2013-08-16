@@ -19,16 +19,18 @@ bool PrintFunctionNames::runOnModule(Module &M) {
 
   // iterating through functions
   for(Module::iterator f = M.begin(), fe = M.end(); f != fe; f++) {
-    
-    // finding and printing file information 
-    BasicBlock &block = f->getEntryBlock();
-    Instruction &inst = block.front();
 
-    if (MDNode *node = inst.getMetadata("dbg")) {
-      DILocation loc(node);
-      errs() << "File name: " << loc.getFilename() << "\t";
+    if (!f->isDeclaration()) {
+      // finding and printing file information 
+      BasicBlock &block = f->getEntryBlock();
+      Instruction &inst = block.front();
+      
+      if (MDNode *node = inst.getMetadata("dbg")) {
+	DILocation loc(node);
+	errs() << "File name: " << loc.getFilename() << "\t";
+      }
     }
-    
+      
     // finding and printing function informatonion
     errs() << "Function name: " << f->getName() << "\n";
   }
