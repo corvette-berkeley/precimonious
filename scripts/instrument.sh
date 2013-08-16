@@ -5,7 +5,7 @@
 # Use: ./instrument.sh file .
 # ####################################
 
-sourcePath=$CORVETTE_PATH"/precision-tuning"
+sourcePath=$CORVETTE_PATH"/src"
 sharedLib=$sourcePath"/Passes.so"
 
 # compile counters and link with bitcode to be instrumented

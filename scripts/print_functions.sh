@@ -2,7 +2,7 @@
 
 # #############################################################
 # Shell script to create search file for a given program
-# Use: ./search.sh name_of_bc_file
+# Use: ./print_functions.sh name_of_bc_file
 # #############################################################
 
 sharedLib=$CORVETTE_PATH"/src/Passes.so"
@@ -14,10 +14,5 @@ if [ "$name" = "Darwin" ]; then
     sharedLib=$CORVETTE_PATH"/src/Passes.dylib"    
 fi
 
-varFlags="--only-arrays --only-scalars --funs"
-
-echo "Creating search file search file" search_$1.json
-opt -load $sharedLib -search-file --original-type $varFlags $1.bc --filename search_$1.json > $1.tmp
-
-# cleaning up
-rm -f $1.tmp
+echo "Printing function names"
+opt -load $sharedLib -print-names $1.bc -disable-output

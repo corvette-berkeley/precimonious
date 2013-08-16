@@ -5,7 +5,14 @@
 # Use: ./dependencies.sh name_of_bc_file function_main
 # ##########################################
 
-sharedLib=$CORVETTE_PATH"/precision-tuning/Passes.so"
+arch=`uname -a`
+name=${arch:0:6}
+
+sharedLib=$CORVETTE_PATH"/src/Passes.so"
+
+if [ "$name" = "Darwin" ]; then
+    sharedLib=$CORVETTE_PATH"/src/Passes.dylib"    
+fi
 
 echo "Finding dependencies file for " $1.bc
 opt -load $sharedLib -create-call-dependency $1.bc --call-main $2 > $1.tmp

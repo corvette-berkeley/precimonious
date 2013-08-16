@@ -5,8 +5,8 @@
 # Use: ./coverage.sh file .
 # ####################################
 
-sourcePath=$CORVETTE_PATH"/precision-tuning"
-sharedLib=$CORVETTE_PATH"/precision-tuning/Passes.so"
+sourcePath=$CORVETTE_PATH"/src"
+sharedLib=$CORVETTE_PATH"/src/Passes.so"
 
 # compile counters into driver
 clang -emit-llvm -c $sourcePath/branches.c -o $2/branches.bc

@@ -17,4 +17,4 @@ rm -f $1/i_m_*
 rm -f $1/log.cov
 rm -f $1/log.dd
 rm -f $1/counters.bc $1/cov* $1/temp_*.bc $1/demo_fn.bc
-rm -f $1/score.cov $1/sat.cov 
+#rm -f $1/score.cov $1/sat.cov 

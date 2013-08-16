@@ -1,13 +1,16 @@
 #!/usr/bin/env python
 
 import types, sys, os, math, json
-import transform_par, utilities_par
+import transform_par, utilities
+import math
 import multiprocessing
+from multiprocessing import Process, Queue
 
 #
 # global search counter
 #
 search_counter = 0
+CPU_NO = 6
 
 def run_delta(delta_change, delta_type, change_set, type_set, search_config,
     original_config, bitcode, original_score, inx, queue):
@@ -24,6 +27,7 @@ def run_delta(delta_change, delta_type, change_set, type_set, search_config,
 
 def dd_search_config(change_set, type_set, search_config, original_config, bitcode, original_score, div):
   global search_counter
+  global CPU_NO
   #
   # partition change_set into deltas and delta inverses
   #
@@ -76,7 +80,9 @@ def dd_search_config(change_set, type_set, search_config, original_config, bitco
     original_score, start_inx+len(delta_change_set)+i, inv_queue))) 
 
   # run in parallel maximum cpu_no processes at a time
-  cpu_no = multiprocessing.cpu_count()
+  cpu_no = CPU_NO 
+  #multiprocessing.cpu_count()
+  # cpu_no = 1
   loop = int(len(workers)/cpu_no)
   for i in xrange(0, loop):
     for j in xrange(i*cpu_no, min((i+1)*cpu_no, len(workers))):

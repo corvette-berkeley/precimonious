@@ -1,24 +1,68 @@
 
-Sample main.py
-==============
-Transforms a program given a configuration file and checks the result.
-
-Required files: file.bc, file.json, spec.cov
-Command: ./main file.bc file.json
-
 brute_force.py
 ===============
 Runs the brute force algorithm.
 
-Required files: file.bc searchFile.json file.json
-Command: ./brute_force.py file.bc searchFile.json file.json [limit]
+Required files: file.bc search_file.json config_file.json
+Command: ./brute_force.py file.bc search_file.json config_file.json [limit]
 
-dd.py
+config.sh
+===========
+Creates the config file (original types for variables). This file can be modified by hand to illustrate a given transformation, which can be applied using the main.py script directly.
+
+Required files: bitcode file.
+Command: ./config.sh file .
+Result: config_file.json
+
+dd2.py
 ===============
 Run the dd algorithm.
 
-Required files: file.bc searchFile.json file.json
-Command: ./dd.py file.bc searchFile.json file.json
+Required files: file.bc search_file.json config_file.json
+More requirements: code should be annotated with logger/checker and timers.
+Command: ./dd2.py file.bc search_file.json config_file.json
+
+dd_par.py
+===============
+Run the dd algorithm in parallel.
+
+Required files: file.bc search_file.json config_file.json
+More requirements: code should be annotated with logger/checker and timers with a unique id. See benchmarks/gsl/sum-thresholds/sum4-par/sum.c for example.
+- Code should receive an id as input to command line
+- Spec is logged as usual as in non-parallel case (using cov_spec_log)
+- Log is logged using cov_log to a file called log_#id.cov (#id is the value of id)
+- Check is performed using cov_check_par, e.g. cov_check_par("log_#id.cov", "spec.cov", 3, id)
+- Score is stored in a file called score_#id.cov (#id is the value of id)
+Command: ./dd_par.py file.bc search_file.json config_file.json
+
+dependencies.sh
+================
+Finds the functions reachable from a given function, and the list of global variables modified by those functions (and to be included in the search space).
+
+Required files: file.bc
+Command: ./dependencies.sh file_name target_function .
+The target function is usually "main".
+Produced files: include.txt include_global.txt
+
+main.py
+==============
+Transforms a program given a configuration file and checks the result.
+
+Required files: file.bc, config_file.json, spec.cov
+Command: ./main file.bc config_file.json
+
+pconfig.sh
+===========
+Creates the config file (original types for variables). This is used to produce the diff after running DD.
+
+Required files: bitcode file, exclude.txt include.txt include_global.txt
+Optional file: exclude_local.txt
+See dependencies.sh to create include.txt and include_global.txt
+The file exclude.txt is created by hand, and lists all the functions to be ignored by the analysis.
+The file exclude_local.txt is created by hand, and lists all local variables to be excluded from the search space. It assumes unique names given by LLVM, so it is preferably to create the config file without this information first, then identify the variables to be excluded.
+
+Command: ./pconfig.sh file .
+Result: config_file.json
 
 run.py
 ===============
@@ -27,3 +71,15 @@ Cleans, compiles, creates search and original config file, and runs the dd algor
 Required files: source files
 Command: ./run.sh filename .
 
+search.sh
+==========
+Creates search file for a given bitcode file.
+
+Required files: bitcode file, exclude.txt include.txt include_global.txt
+Optional file: exclude_local.txt
+See dependencies.sh to create include.txt and include_global.txt
+The file exclude.txt is created by hand, and lists all the functions to be ignored by the analysis.
+The file exclude_local.txt is created by hand, and lists all local variables to be excluded from the search space. It assumes unique names given by LLVM, so it is preferably to create the search file without this information first, then identify the variables to be excluded.
+
+Command: ./search.sh file .
+Result: search_file.json

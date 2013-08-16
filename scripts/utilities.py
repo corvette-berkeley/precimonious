@@ -3,13 +3,20 @@
 import json
 import types
 import sys
-import transform
+import transform2
+import transform_par
 
 def get_dynamic_score():
   scorefile = open("score.cov")
   score = scorefile.readline()
   score = score.strip()
   return int(score)
+
+#def get_dynamic_score(inx):
+#  scorefile = open("score_" + str(inx) + ".cov")
+#  score = scorefile.readline()
+#  score = score.strip()
+#  return int(score)
 
 def log_fast_config(logfile, counter, score):
   f = open(logfile, "a")
@@ -40,6 +47,10 @@ def log_config(config, msg, logfile, counter):
       elif changeKey == "op":
         name = change.values()[0]["id"]
         f.write(name + ":" + t + " ")
+    if changeKey == "call":
+        name = change.values()[0]["name"]
+        swit = change.values()[0]["switch"]
+        f.write(name + ":" + swit + " ")
   f.write(": " + msg)
   f.write("\n")
 
@@ -51,7 +62,17 @@ def print_config(config, configFile):
     f.write("\t\"" + change.keys()[0] + "\": {\n")
     changeValue = change.values()[0]
     for valueInfo in changeValue.keys():
-      f.write("\t\t\"" + valueInfo + "\": \"" + changeValue[valueInfo] + "\",\n")
+      if isinstance(changeValue[valueInfo], list):
+        valueInfoList = changeValue[valueInfo]
+        valueInfoListString = "["
+        if len(valueInfoList) > 0:
+          valueInfoListString += "\"" + valueInfoList[0] + "\"";
+        for i in xrange(1, len(valueInfoList)):
+          valueInfoListString += ",\"" + valueInfoList[i] + "\"";
+        valueInfoListString += "]"
+        f.write("\t\t\"" + valueInfo + "\": " + valueInfoListString + ",\n")
+      else:
+        f.write("\t\t\"" + valueInfo + "\": \"" + changeValue[valueInfo] + "\",\n")
     f.write("\t},\n")
   f.write("}\n")
 
@@ -63,23 +84,30 @@ def print_diff(changeConfig, originalConfig, diffFile):
   while count < len(originalList):
     change = changeList[count]
     origin = originalList[count]
-    newType = change.values()[0]["type"]
-    originType = origin.values()[0]["type"]
-    if newType != originType:
-      changeType = change.keys()[0]
-      if changeType == "localVar":
-        function = change.values()[0]["function"]
-        if change.values()[0].has_key("file"):
+    changeType = change.keys()[0]
+    if changeType == "call":
+      newSwitch = change.values()[0]["switch"]
+      originalSwitch = origin.values()[0]["switch"]
+      if newSwitch != originalSwitch:
+          function = change.values()[0]["function"]
+          f.write("call: " + change.values()[0]["name"] + " at " + function + originalSwitch + " -> " + newSwitch + "\n")
+    else:
+      newType = change.values()[0]["type"]
+      originType = origin.values()[0]["type"]
+      if newType != originType:
+        if changeType == "localVar":
+          function = change.values()[0]["function"]
+          if change.values()[0].has_key("file"):
+            fileName = change.values()[0]["file"]
+            f.write("localVar: " + change.values()[0]["name"] + "  at " + function + " at " + fileName + " " + originType + " -> " + newType + "\n")
+          else:
+            f.write("localVar: " + change.values()[0]["name"] + "  at " + function + " " + originType + " -> " + newType + "\n")
+        elif changeType == "op": 
           fileName = change.values()[0]["file"]
-          f.write("localVar: " + change.values()[0]["name"] + "  at " + function + " at " + fileName + " " + originType + " -> " + newType + "\n")
-        else:
-          f.write("localVar: " + change.values()[0]["name"] + "  at " + function + " " + originType + " -> " + newType + "\n")
-      elif changeType == "op": 
-        fileName = change.values()[0]["file"]
-        function = change.values()[0]["function"]
-        f.write("op: " + change.values()[0]["id"] + " at " + function + " at " + fileName + " " + originType + " -> " + newType + "\n")
-      elif changeType == "globalVar":
-        f.write("globalVar: " + change.values()[0]["name"] + " " + originType + " -> " + newType + "\n")
+          function = change.values()[0]["function"]
+          f.write("op: " + change.values()[0]["id"] + " at " + function + " at " + fileName + " " + originType + " -> " + newType + "\n")
+        elif changeType == "globalVar":
+          f.write("globalVar: " + change.values()[0]["name"] + " " + originType + " -> " + newType + "\n")
     count += 1
 
 #
@@ -126,7 +154,7 @@ def to_2nd_highest_precision(change_set, type_set):
 #
 def run_config(search_config, original_config, bitcode, inx):
   print_config(search_config, "config_temp_" + str(inx) + ".json")
-  result = transform.transform(bitcode, "config_temp_" + str(inx) + ".json", inx)
+  result = transform_par.transform(bitcode, "config_temp_" + str(inx) + ".json", inx)
   if result == 1:
     print_config(search_config, "VALID_config_" + bitcode + "_" +
         str(inx) + ".json")

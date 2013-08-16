@@ -1,13 +1,16 @@
 #!/usr/bin/env python
 
 import types, sys, os, math, json
-import transform_par, utilities_par
+import transform_par, utilities
+import math
 import multiprocessing
+from multiprocessing import Process, Queue
 
 #
 # global search counter
 #
 search_counter = 0
+CPU_NO = 4
 
 def run_delta(delta_change, delta_type, change_set, type_set, search_config,
     original_config, bitcode, original_score, inx, queue):
@@ -21,6 +24,107 @@ def run_delta(delta_change, delta_type, change_set, type_set, search_config,
     score = utilities.get_dynamic_score(inx)
     if result == 1 and score < original_score:
       queue.put([inx, score])
+
+def dd_search_config_dis(change_set, type_set, search_config, original_config, bitcode, div, search_counter):
+  #
+  # partition change_set into deltas and delta inverses
+  #
+  delta_change_set = []
+  delta_type_set = []
+  delta_inv_change_set = []
+  delta_inv_type_set = []
+  div_size = int(math.ceil(float(len(change_set))/float(div)))
+  for i in xrange(0, len(change_set), div_size):
+    delta_change = []
+    delta_type = []
+    delta_inv_change = []
+    delta_inv_type = []
+    for j in xrange(0, len(change_set)):
+      if j >= i and j < i+div_size:
+        delta_change.append(change_set[j])
+        delta_type.append(type_set[j])
+      else:
+        delta_inv_change.append(change_set[j])
+        delta_inv_type.append(type_set[j])
+    delta_change_set.append(delta_change)
+    delta_type_set.append(delta_type)
+    delta_inv_change_set.append(delta_inv_change)
+    delta_inv_type_set.append(delta_inv_type)
+
+  #
+  # iterate through all delta and inverse delta set
+  # record delta set that passes
+  #
+  pass_inx = -1
+  inv_is_better = False
+
+  #
+  # iterate through all deltas and delta inverses
+  # run in parallel
+  #
+  for i in xrange(0, len(delta_change_set)):
+    delta_change = delta_change_set[i]
+    delta_type = delta_type_set[i]
+    if len(delta_change) > 0:
+      # always reset to lowest precision
+      utilities.to_2nd_highest_precision(change_set, type_set)
+      # apply change for variables in delta
+      utilities.to_highest_precision(delta_change, delta_type)
+      # run config
+      if utilities.run_config(search_config, original_config, bitcode, search_counter) == 1:
+        search_counter += 1
+        pass_inx = i
+        break
+      else:
+        search_counter += 1
+
+  if pass_inx == -1:
+    for i in xrange(0, len(delta_inv_change_set)):
+      delta_change = delta_inv_change_set[i]
+      delta_type = delta_inv_type_set[i]
+      if len(delta_change) > 0:
+        # always reset to lowest precision
+        utilities.to_2nd_highest_precision(change_set, type_set)
+        # apply change for variables in delta
+        utilities.to_highest_precision(delta_change, delta_type)
+        # run config
+        if utilities.run_config(search_config, original_config, bitcode, search_counter) == 1:
+          search_counter += 1
+          pass_inx = i
+          inv_is_better = True
+          break
+        else:
+          search_counter += 1
+
+  #
+  # recursively search in pass delta or pass delta inverse
+  # right now keep searching for the first pass delta or
+  # pass delta inverse; later on we will integrate cost
+  # model here
+  #
+  if pass_inx != -1:
+    pass_change_set = delta_inv_change_set[pass_inx] if inv_is_better else delta_change_set[pass_inx]
+    pass_type_set = delta_inv_type_set[pass_inx] if inv_is_better else delta_type_set[pass_inx]
+
+    if len(pass_change_set) > 1:
+      # always reset to lowest precision
+      utilities.to_2nd_highest_precision(change_set, type_set)
+      dd_search_config_dis(pass_change_set, pass_type_set, search_config, original_config, bitcode, 2, search_counter)
+    else:
+      utilities.to_2nd_highest_precision(change_set, type_set)
+      utilities.to_highest_precision(pass_change_set, pass_type_set)
+    return
+
+  #
+  # stop searching when division greater than change set size
+  #
+  if div >= len(change_set):
+    utilities.to_highest_precision(change_set, type_set)
+    return
+  else:
+    dd_search_config_dis(change_set, type_set, search_config, original_config, bitcode, 2*div, search_counter)
+    return
+
 
 def dd_search_config(change_set, type_set, search_config, original_config, bitcode, original_score, div):
   global search_counter
@@ -58,52 +162,46 @@ def dd_search_config(change_set, type_set, search_config, original_config, bitco
   inv_is_better = False
 
   #
-  # iterate through all deltas
+  # iterate through all deltas and delta inverses
   # run in parallel
+  #
   start_inx = search_counter
   queue = Queue()
+  inv_queue = Queue()
   workers = []
   for i in xrange(0, len(delta_change_set)):
     workers.append(Process(target=run_delta, args=(delta_change_set[i],
     delta_type_set[i], change_set, type_set, search_config, original_config, bitcode,
     original_score, start_inx+i, queue))) 
 
-  for w in workers:
-    w.start()
+  for i in xrange(0, len(delta_inv_change_set)):
+    workers.append(Process(target=run_delta, args=(delta_inv_change_set[i],
+    delta_inv_type_set[i], change_set, type_set, search_config, original_config, bitcode,
+    original_score, start_inx+len(delta_change_set)+i, inv_queue))) 
 
-  for w in workers:
-    w.join()
+  # run in parallel maximum cpu_no processes at a time
+  cpu_no = CPU_NO 
+  # multiprocessing.cpu_count()
+  loop = int(len(workers)/cpu_no)
+  for i in xrange(0, loop):
+    for j in xrange(i*cpu_no, min((i+1)*cpu_no, len(workers))):
+      workers[j].start()
+    for j in xrange(i*cpu_no, min((i+1)*cpu_no, len(workers))):
+      workers[j].join()
 
   while not queue.empty():
     result = queue.get()
     if min_score == -1 or result[1] < min_score:
       pass_inx = result[0] - start_inx
       inv_is_better = False
-  search_counter += len(delta_change_set)
 
-  #
-  # iterate through all delta inverses
-  # run in parallel
-  start_inx = search_counter
-  queue = Queue()
-  workers = []
-  for i in xrange(0, len(delta_inv_change_set)):
-    workers.append(Process(target=run_delta, args=(delta_inv_change_set[i],
-    delta_inv_type_set[i], change_set, type_set, search_config, original_config, bitcode,
-    original_score, start_inx+i, queue))) 
-
-  for w in workers:
-    w.start()
-
-  for w in workers:
-    w.join()
-
-  while not queue.empty():
-    result = queue.get()
+  while not inv_queue.empty():
+    result = inv_queue.get()
     if min_score == -1 or result[1] < min_score:
-      pass_inx = result[0] - start_inx
+      pass_inx = result[0] - start_inx - len(delta_change_set)
       inv_is_better = True
-  search_counter += len(delta_change_set)
+
+  search_counter += len(delta_change_set) + len(delta_inv_change_set)
 
   #
   # recursively search in pass delta or pass delta inverse
@@ -153,6 +251,22 @@ def search_config(change_set, type_set, search_config, original_config, bitcode,
     if len(type_vector) > 0:
       type_vector.pop()
 
+def search_config_dis(change_set, type_set, search_config, original_config, bitcode, search_counter, inx, queue):
+  # search from bottom up
+  utilities.to_2nd_highest_precision(change_set, type_set)
+  if utilities.run_config(search_config, original_config, bitcode, search_counter) != 1:
+    search_counter = search_counter + 1
+    if len(change_set) > 1:
+      dd_search_config_dis(change_set, type_set, search_config, original_config, bitcode, 2, search_counter)
+    else:
+      utilities.to_highest_precision(change_set, type_set)
+  else:
+    search_counter = search_counter + 1
+  # remove types that cannot be changed
+  for i in xrange(0, len(change_set)):
+    if len(type_set[i]) > 0 and change_set[i]["type"] == type_set[i][-1]:
+      queue.put(inx + i)
+
 #
 # main function receives
 #   - argv[1] : bitcode file location
@@ -191,10 +305,6 @@ def main():
       type_set.append(type_vector)
       change_set.append(search_change.values()[0])
 
-  #
-  # search for valid configuration
-  #
-  print "Searching for valid configuration using delta-debugging algorithm ..."
 
   # get original score
   utilities.to_highest_precision(change_set, type_set)
@@ -202,8 +312,48 @@ def main():
   original_score = utilities.get_dynamic_score(search_counter) * 1.05
   search_counter = search_counter + 1
 
+  cpu_no = CPU_NO
+  # multiprocessing.cpu_count()
+  #
+  # search for valid configuration
+  #
+  print "Searching for valid configuration using delta-debugging algorithm ..."
   # keep searching while the type set is not searched throughout
   while not utilities.is_empty(type_set):
+    #
+    # distribute change set
+    #
+    dis_no = ((len(change_set)-1)/cpu_no)+1
+    queue = Queue()
+    workers = []
+    for i in xrange(cpu_no):
+      workers.append(Process(target=search_config_dis, args=(
+        change_set[i*dis_no:min((i+1)*dis_no, len(change_set))],
+        type_set[i*dis_no:min((i+1)*dis_no, len(type_set))],
+        search_conf, original_conf, bitcode, search_counter + i*dis_no*dis_no, i*dis_no, queue)))
+
+    utilities.to_highest_precision(change_set, type_set)
+    for w in workers:
+      w.start()
+
+    for w in workers:
+      w.join()
+
+    print len(type_set)
+    while not queue.empty():
+      inx = queue.get()
+      print inx
+      del(type_set[inx][:])
+
+    j = 0
+    while j < len(type_set):
+      if len(type_set[j]) == 0:
+        type_set.pop(j)
+        change_set.pop(j)
+      else:
+        j += 1
+
+    search_counter += cpu_no*dis_no*dis_no
     search_config(change_set, type_set, search_conf, original_conf, bitcode, original_score)
 
   # get the score of modified program
