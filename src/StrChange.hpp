@@ -17,7 +17,7 @@ public:
 
   int getField();
   
-private:
+protected:
   string classification;
   string types;
   int field;

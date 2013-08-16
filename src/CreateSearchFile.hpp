@@ -19,8 +19,10 @@ using namespace std;
 using namespace llvm;
 extern cl::opt<string> ExcludedFunctionsFileName;
 extern cl::opt<string> IncludedFunctionsFileName;
-extern cl::opt<string> IncludedVarsFileName;
+extern cl::opt<string> IncludedGlobalVarsFileName;
+extern cl::opt<string> ExcludedLocalVarsFileName;
 extern cl::opt<bool> ListOperators;
+extern cl::opt<bool> ListFunctions;
 extern cl::opt<bool> OnlyScalars;
 extern cl::opt<bool> OnlyArrays;
 extern cl::opt<string> FileName;
@@ -39,7 +41,7 @@ public:
 
   bool doInitialization(Module &);
 
-  void findFunctionCalls(Function &function/*, raw_fd_ostream &outfile*/);
+  void findFunctionCalls(Function &function, raw_fd_ostream &outfile, bool &first);
 
   void findGlobalVariables(Module &module, raw_fd_ostream &outfile, bool &first);
 
@@ -62,7 +64,11 @@ private:
 
   set<string> includedFunctions;
 
-  set<string> includedVars;
+  set<string> includedGlobalVars;
+
+  set<string> excludedLocalVars;
+
+  set<string> functionCalls;
 };
 
 #endif // CREATE_SEARCH_FILE_GUARD

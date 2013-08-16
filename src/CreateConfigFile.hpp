@@ -31,7 +31,7 @@ public:
 
   bool doInitialization(Module &);
 
-  void findFunctionCalls(Function &function/*, raw_fd_ostream &outfile*/);
+  void findFunctionCalls(Function &function, raw_fd_ostream &outfile, bool &first);
 
   void findGlobalVariables(Module &module, raw_fd_ostream &outfile, bool &first);
 
@@ -50,7 +50,11 @@ private:
 
   set<string> includedFunctions;
 
-  set<string> includedVars;
+  set<string> includedGlobalVars;
+
+  set<string> excludedLocalVars;
+
+  set<string> functionCalls;
 };
 
 #endif // CREATE_CONFIG_FILE_GUARD

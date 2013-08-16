@@ -25,7 +25,7 @@ public:
   
   int getField();
 
-private:
+protected:
   Value* value;
   Types type;
   int field;
