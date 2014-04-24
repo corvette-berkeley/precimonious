@@ -60,9 +60,13 @@ This will create a file called spec.cov. This file contains the output and the e
 ```
 ../scripts/dd2.py funarc.bc search_funarc.json config_funarc.json
 ```
-This will create two files: dd2_diff_funarc.bc.json and dd2_valid_funarc.bc.json. The first file (dd2_diff_funarc.bc.json) tells you which variables can be converted to double or float. The second file (dd2_valid_funarc.bc.json) is the type configuration file in json format. Changing the precision according to the type configuration produces a program that uses less precision and runs faster than the original program.
+This will create two files: _dd2_diff_funarc.bc.json_ and _dd2_valid_funarc.bc.json_. 
 
-Now you may wonder what is the other files search_funarc.json and config_funarc.json are.
+The first file (_dd2_diff_funarc.bc.json_) tells you which variables can be converted to double or float. 
+
+The second file (_dd2_valid_funarc.bc.json_) is the type configuration file in json format. Changing the precision according to the type configuration produces a program that uses less precision and runs faster than the original program.
+
+You may also wonder what are the other files search_funarc.json and config_funarc.json?
 
 ```
 search_funarc.json: specify search space for Precimonious. To generate this automatically, run:
