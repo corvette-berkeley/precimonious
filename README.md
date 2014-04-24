@@ -38,3 +38,36 @@ scons -U test // to run the regression test
 ```
 
 ## Running the Example
+* Go inside _examples_ folder, take a look at the file funarc.c. This is the target program that we will tune precision on.
+* Compile the program with the following command
+```
+./compile funarc.c . (remember there is a dot at the end)
+```
+This will create a bitcode file called funarc.bc, together with some other temporary files.
+```
+lli funarc.bc
+```
+This will create a file called spec.cov. This file contains the output and the error threshold in hex format.
+* Open funarc.c, comment out the code at line 100, so that the next time the program runs, it will not create the specification file spec.cov again.
+```
+// cov_arr_spec_log("spec.cov", threshold, INPUTS, log)
+```
+* Compile funarc again
+```
+./compile funarc.c .
+```
+* Now you can run Precimonious to tune precision of funarc using the following command.
+```
+../scripts/dd2.py funarc.bc search_funarc.json config_funarc.json
+```
+This will create two files: dd2_diff_funarc.bc.json and dd2_valid_funarc.bc.json. The first file (dd2_diff_funarc.bc.json) tells you which variables can be converted to double or float. The second file (dd2_valid_funarc.bc.json) is the type configuration file in json format. Changing the precision according to the type configuration produces a program that uses less precision and runs faster than the original program.
+
+Now you may wonder what is the other files search_funarc.json and config_funarc.json are.
+
+```
+search_funarc.json: specify search space for Precimonious. To generate this automatically, run:
+../scripts/search.sh funarc .
+config_funarc.json: the type configuration of the original program. To generate this automatically, run:
+ ../scripts/pconfig.sh funarc .
+```
+
