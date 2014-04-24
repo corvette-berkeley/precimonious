@@ -13,13 +13,13 @@ Computing, Networking, Storage and Analysis (SC'13) in November 2013.
 
 ## Installation Instruction
 ### Requirement
-1. Scons build system. 
-2. LLVM 3.0. When building LLVM, use --enable-shared flag.
+* Scons build system. 
+* LLVM 3.0. When building LLVM, use --enable-shared flag.
 ```
 ../llvm/configure --enable-shared
 make
 ```
-3. Set the following environment variable.
+* Set the following environment variable.
 ```
 CORVETTE_PATH=path/to/precimonious
 LLVM_COMPILER=clang
@@ -29,9 +29,12 @@ PATH=$PATH:path/to/llvm/Release/bin
 
 ### Instruction
 After setting up the requirement, you can install Precimonious by
-> cd src
-> scons -Uc
-> scons -U
-> scons -U test // to run the regression test
+
+```
+cd src
+scons -Uc
+scons -U
+scons -U test // to run the regression test
+```
 
 ## Running the Example
