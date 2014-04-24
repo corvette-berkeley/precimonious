@@ -8,6 +8,9 @@ precision subject to accuracy constraints and performance goals. The tool then
 recommends a type instantiation for these variables using less precision while
 producing an accurate enough answer without causing exceptions.
 
+This work was presented at the International Conference for High Performance
+Computing, Networking, Storage and Analysis (SC'13) in November 2013.
+
 ## Installation Instruction
 ### Requirement
 
