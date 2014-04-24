@@ -1,0 +1,61 @@
+{"config": [
+	{"localVar": {
+		"function": "fun",
+		"name": "t1",
+		"type": "longdouble"
+	}},
+	{"localVar": {
+		"function": "fun",
+		"name": "d1",
+		"type": "longdouble"
+	}},
+	{"localVar": {
+		"function": "fun",
+		"name": "x",
+		"type": "longdouble"
+	}},
+	{"call": {
+		"id": "24",
+		"function": "fun",
+		"name": "sin",
+		"switch": "sin",
+		"type": ["double","double"]
+	}},
+	{"localVar": {
+		"function": "main",
+		"name": "ans",
+		"type": "longdouble"
+	}},
+	{"localVar": {
+		"function": "main",
+		"name": "s1",
+		"type": "longdouble"
+	}},
+	{"localVar": {
+		"function": "main",
+		"name": "t1",
+		"type": "longdouble"
+	}},
+	{"localVar": {
+		"function": "main",
+		"name": "t2",
+		"type": "longdouble"
+	}},
+	{"localVar": {
+		"function": "main",
+		"name": "h",
+		"type": "longdouble"
+	}},
+	{"localVar": {
+		"function": "main",
+		"name": "dppi",
+		"type": "longdouble"
+	}},
+	{"call": {
+		"id": "108",
+		"function": "main",
+		"name": "sqrt",
+		"switch": "sqrt",
+		"type": ["double","double"]
+	}}
+]}
